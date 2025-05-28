@@ -147,6 +147,7 @@ class ShoppingListController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'tag' => 'nullable|string|max:255',
         ]);
 
         $userId = auth()->id();
@@ -196,6 +197,7 @@ class ShoppingListController extends Controller
         $this->firebase->set("items/$listId/$categoryId/$itemId", [
             'name' => $request->name,
             'is_completed' => false,
+            'tag' => $request->tag ?? '',
             'created_at' => now()->toIso8601String(),
         ]);
 
@@ -207,7 +209,6 @@ class ShoppingListController extends Controller
     {
         $request->validate([
             'category_id' => 'required',
-            'is_completed' => 'boolean',
         ]);
 
         $userId = auth()->id();
@@ -219,8 +220,10 @@ class ShoppingListController extends Controller
         }
 
         $categoryId = $request->category_id;
+        $isCompleted = $request->has('is_completed') ? true : false;
+
         $this->firebase->update("items/$listId/$categoryId/$itemId", [
-            'is_completed' => $request->has('is_completed'),
+            'is_completed' => $isCompleted,
             'updated_at' => now()->toIso8601String(),
         ]);
 

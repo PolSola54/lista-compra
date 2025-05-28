@@ -23,6 +23,7 @@
                 @csrf
                 <div class="flex space-x-2">
                     <input type="text" name="name" class="p-2 w-full border rounded" placeholder="Afegir ítem..." required>
+                    <input type="text" name="tag" class="p-2 w-full border rounded" placeholder="Etiqueta (ex. Bonpreu-Esclat)">
                     <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                         Afegir Ítem
                     </button>
@@ -42,7 +43,7 @@
                         <form action="{{ route('shopping_lists.categories.destroy', [$listId, $categoryId]) }}" method="POST" onsubmit="return confirm('Segur que vols eliminar aquesta categoria?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded">
+                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded">
                                 Eliminar Categoria
                             </button>
                         </form>
@@ -55,15 +56,17 @@
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="category_id" value="{{ $categoryId }}">
-                                    <input type="checkbox" name="is_completed" {{ $item['is_completed'] ? 'checked' : '' }} onchange="this.form.submit()" class="mr-2">
+                                    <input type="checkbox" name="is_completed" value="1" {{ $item['is_completed'] ? 'checked' : '' }} onchange="this.form.submit()" class="mr-2" id="item-{{ $itemId }}">
                                 </form>
-                                <span class="{{ $item['is_completed'] ? 'line-through text-gray-500' : '' }}">{{ $item['name'] }}</span>
+                                <span class="{{ $item['is_completed'] ? 'line-through text-gray-500' : '' }}">
+                                    {{ $item['name'] }} {{ $item['tag'] ?? '' ? "({$item['tag']})" : '' }}
+                                </span>
                             </div>
                             <form action="{{ route('shopping_lists.items.destroy', [$listId, $itemId]) }}" method="POST" onsubmit="return confirm('Segur que vols eliminar aquest ítem?');">
                                 @csrf
                                 @method('DELETE')
                                 <input type="hidden" name="category_id" value="{{ $categoryId }}">
-                                <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded">
+                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded">
                                     Eliminar
                                 </button>
                             </form>

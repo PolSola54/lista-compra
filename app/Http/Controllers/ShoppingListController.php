@@ -153,37 +153,40 @@ class ShoppingListController extends Controller
 
     // Unir-se a una llista amb una clau
     public function join(Request $request)
-    {
-        $request->validate([
-            'share_code' => 'required|string|size:6',
-        ]);
+{
+    $request->validate(
+        [
+            'share_code' => ['required', 'size:6'],
+        ],
+        [
+            'share_code.size' => 'La clau ha de tenir exactament 6 caràcters.',
+        ]
+    );
 
-        $userId = auth()->id();
-        $shareCode = strtoupper($request->share_code);
-        $shareData = $this->firebase->get("share_codes/$shareCode");
+    $userId = auth()->id();
+    $shareCode = $request->input('share_code');
 
-        if (!$shareData) {
-            return back()->withErrors(['share_code' => 'Clau no vàlida']);
-        }
+    $shareCodeRef = app('firebase.database')->getReference("share_codes/$shareCode");
+    $shareCodeData = $shareCodeRef->getValue();
 
-        $listId = array_key_first($shareData);
-        $listData = $shareData[$listId];
-        $list = $this->firebase->get("shopping_lists/created/{$listData['user_id']}/$listId");
-
-        if (!$list) {
-            return back()->withErrors(['share_code' => 'Llista no trobada']);
-        }
-
-        // Verificar si l'usuari ja està unit
-        if ($this->firebase->get("shopping_lists/shared/$userId/$listId") || $listData['user_id'] == $userId) {
-            return back()->withErrors(['share_code' => 'Ja estàs unit a aquesta llista']);
-        }
-
-        // Afegir usuari a la llista compartida
-        $this->firebase->set("shopping_lists/shared/$userId/$listId", $list);
-
-        return redirect()->route('shopping_lists.index')->with('success', 'T’has unit a la llista correctament');
+    if (!$shareCodeData) {
+        return back()->withErrors(['share_code' => 'Clau no vàlida']);
     }
+
+    $listId = $shareCodeData['list_id'];
+    $ownerId = $shareCodeData['user_id'];
+
+    if ($userId == $ownerId || app('firebase.database')->getReference("shopping_lists/shared/$userId/$listId")->getValue()) {
+        return back()->withErrors(['share_code' => `Ja formes part d'aquesta llista`]);
+    }
+
+    app('firebase.database')->getReference("shopping_lists/shared/$userId/$listId")->set([
+        'list_id' => $listId,
+        'added_at' => now()->toDateTimeString(),
+    ]);
+
+    return redirect()->route('shopping_lists.index')->with('status', `Ara formes part d'aquesta llista`);
+}
 
     // Emmagatzemar un nou ítem en una llista
     public function storeItem(Request $request, $listId)

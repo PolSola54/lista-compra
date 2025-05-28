@@ -21,7 +21,6 @@ class ShoppingListController extends Controller
     public function index()
     {
         $userId = auth()->id();
-        dd($userId); // Debería mostrar un número (el ID del usuario)
         $createdLists = $this->firebase->get("shopping_lists/created/$userId") ?? [];
         $sharedLists = $this->firebase->get("shopping_lists/shared/$userId") ?? [];
         $shoppingLists = array_merge($createdLists, $sharedLists);
@@ -67,7 +66,12 @@ class ShoppingListController extends Controller
         }
 
         $categories = $this->firebase->get("categories/$listId") ?? [];
-        return view('shopping_lists.show', compact('shoppingList', 'categories', 'listId', 'firebase'));
+        $items = [];
+        foreach ($categories as $categoryId => $category) {
+            $items[$categoryId] = $this->firebase->get("items/$listId/$categoryId") ?? [];
+        }
+
+        return view('shopping_lists.show', compact('shoppingList', 'categories', 'items', 'listId'));
     }
 
     // Editar una llista de la compra
@@ -113,7 +117,7 @@ class ShoppingListController extends Controller
                 : "shopping_lists/shared/$userId/$listId";
 
         $this->firebase->delete($path);
-        return redirect()->route('shopping including_lists.index');
+        return redirect()->route('shopping_lists.index');
     }
 
     // Compartir una llista amb un altre usuari

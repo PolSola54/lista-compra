@@ -10,7 +10,7 @@
     <div class="container mx-auto p-4">
         <h1 class="text-3xl font-bold mb-6 text-center">Les meves Llistes de la Compra</h1>
 
-        <!-- Botó per crear nova llista -->
+        <!-- Botó per crear nova llista (temporalmente desactivado) -->
         <div class="mb-4">
             <a href="{{ route('shopping_lists.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                 Crear Nova Llista

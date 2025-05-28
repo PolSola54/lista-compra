@@ -17,6 +17,22 @@ class ShoppingListController extends Controller
         $this->firebase = $firebase;
     }
 
+    // Generar una clau única per compartir
+    private function generateUniqueShareCode()
+    {
+        $characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        $code = '';
+        for ($i = 0; $i < 6; $i++) {
+            $code .= $characters[rand(0, strlen($characters) - 1)];
+        }
+
+        if ($this->firebase->get("share_codes/$code")) {
+            return $this->generateUniqueShareCode();
+        }
+
+        return $code;
+    }
+
     // Mostrar totes les llistes de la compra de l'usuari
     public function index()
     {
@@ -42,16 +58,22 @@ class ShoppingListController extends Controller
 
         $userId = auth()->id();
         $listId = uniqid();
+        $shareCode = $this->generateUniqueShareCode();
         $data = [
             'name' => $request->name,
             'user_id' => $userId,
+            'share_code' => $shareCode,
             'created_at' => now()->toIso8601String(),
         ];
 
-        // Guardar a Firebase
+        // Guardar llista i clau
         $this->firebase->set("shopping_lists/created/$userId/$listId", $data);
+        $this->firebase->set("share_codes/$shareCode/$listId", [
+            'user_id' => $userId,
+            'list_id' => $listId,
+        ]);
 
-        return redirect()->route('shopping_lists.index');
+        return redirect()->route('shopping_lists.index')->with('success', 'Llista creada correctament');
     }
 
     // Mostrar una llista de la compra específica
@@ -105,41 +127,62 @@ class ShoppingListController extends Controller
             'updated_at' => now()->toIso8601String(),
         ]);
 
-        return redirect()->route('shopping_lists.index');
+        return redirect()->route('shopping_lists.index')->with('success', 'Llista actualitzada correctament');
     }
 
     // Esborrar una llista de la compra
     public function destroy($listId)
     {
         $userId = auth()->id();
-        $path = $this->firebase->get("shopping_lists/created/$userId/$listId") 
-                ? "shopping_lists/created/$userId/$listId"
-                : "shopping_lists/shared/$userId/$listId";
+        $list = $this->firebase->get("shopping_lists/created/$userId/$listId") ??
+                $this->firebase->get("shopping_lists/shared/$userId/$listId");
 
-        $this->firebase->delete($path);
-        return redirect()->route('shopping_lists.index');
-    }
-
-    // Compartir una llista amb un altre usuari
-    public function share(Request $request, $listId)
-    {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
-
-        $user = \App\Models\User::where('email', $request->email)->first();
-        if (!$user) {
-            return back()->withErrors(['email' => 'Usuari no trobat']);
-        }
-
-        $userId = auth()->id();
-        $list = $this->firebase->get("shopping_lists/created/$userId/$listId");
         if (!$list) {
             abort(404, 'Llista no trobada');
         }
 
-        $this->firebase->set("shopping_lists/shared/{$user->id}/$listId", $list);
-        return redirect()->route('shopping_lists.index')->with('success', 'Llista compartida correctament');
+        $path = $list['user_id'] == $userId ? "shopping_lists/created/$userId/$listId" : "shopping_lists/shared/$userId/$listId";
+        if ($list['user_id'] == $userId) {
+            // Eliminar clau de compartir
+            $this->firebase->delete("share_codes/{$list['share_code']}/$listId");
+        }
+        $this->firebase->delete($path);
+
+        return redirect()->route('shopping_lists.index')->with('success', 'Llista eliminada correctament');
+    }
+
+    // Unir-se a una llista amb una clau
+    public function join(Request $request)
+    {
+        $request->validate([
+            'share_code' => 'required|string|size:6',
+        ]);
+
+        $userId = auth()->id();
+        $shareCode = strtoupper($request->share_code);
+        $shareData = $this->firebase->get("share_codes/$shareCode");
+
+        if (!$shareData) {
+            return back()->withErrors(['share_code' => 'Clau no vàlida']);
+        }
+
+        $listId = array_key_first($shareData);
+        $listData = $shareData[$listId];
+        $list = $this->firebase->get("shopping_lists/created/{$listData['user_id']}/$listId");
+
+        if (!$list) {
+            return back()->withErrors(['share_code' => 'Llista no trobada']);
+        }
+
+        // Verificar si l'usuari ja està unit
+        if ($this->firebase->get("shopping_lists/shared/$userId/$listId") || $listData['user_id'] == $userId) {
+            return back()->withErrors(['share_code' => 'Ja estàs unit a aquesta llista']);
+        }
+
+        // Afegir usuari a la llista compartida
+        $this->firebase->set("shopping_lists/shared/$userId/$listId", $list);
+
+        return redirect()->route('shopping_lists.index')->with('success', 'T’has unit a la llista correctament');
     }
 
     // Emmagatzemar un nou ítem en una llista
@@ -158,7 +201,6 @@ class ShoppingListController extends Controller
             abort(404, 'Llista no trobada');
         }
 
-        // Taula de classificació automàtica
         $productCategories = [
             'llet' => 'Làctics',
             'formatge' => 'Làctics',
@@ -174,7 +216,6 @@ class ShoppingListController extends Controller
         $itemName = strtolower($request->name);
         $categoryName = $productCategories[$itemName] ?? 'Altres';
 
-        // Buscar o crear categoria
         $categories = $this->firebase->get("categories/$listId") ?? [];
         $categoryId = null;
         foreach ($categories as $id => $cat) {
@@ -192,7 +233,6 @@ class ShoppingListController extends Controller
             ]);
         }
 
-        // Crear ítem
         $itemId = uniqid();
         $this->firebase->set("items/$listId/$categoryId/$itemId", [
             'name' => $request->name,

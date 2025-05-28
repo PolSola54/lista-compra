@@ -10,6 +10,12 @@
     <div class="container mx-auto p-4">
         <h1 class="text-3xl font-bold mb-6 text-center">{{ $shoppingList['name'] }}</h1>
 
+        <!-- Clau per compartir -->
+        <div class="mb-4">
+            <p class="text-gray-700">Clau per compartir: <span class="font-semibold">{{ $shoppingList['share_code'] }}</span></p>
+            <p class="text-sm text-gray-500">Comparteix aquesta clau perquè altres usuaris s’hi uneixin.</p>
+        </div>
+
         <!-- Missatge d'èxit -->
         @if (session('success'))
             <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">

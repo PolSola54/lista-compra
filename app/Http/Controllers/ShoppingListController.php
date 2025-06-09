@@ -306,15 +306,73 @@ class ShoppingListController extends Controller
         }
 
         $productCategories = [
+            // Làctics
             'llet' => 'Làctics',
             'formatge' => 'Làctics',
             'iogurt' => 'Làctics',
+            'mantega' => 'Làctics',
+            'nata' => 'Làctics',
+            'kefir' => 'Làctics',
+        
+            // Forn
             'pa' => 'Forn',
             'croissant' => 'Forn',
+            'baguet' => 'Forn',
+            'ensaimada' => 'Forn',
+            'magdalena' => 'Forn',
+        
+            // Fruites
             'poma' => 'Fruites',
             'plàtan' => 'Fruites',
+            'taronja' => 'Fruites',
+            'maduixa' => 'Fruites',
+            'mango' => 'Fruites',
+            'pinya' => 'Fruites',
+        
+            // Verdures
             'patates' => 'Verdures',
             'ceba' => 'Verdures',
+            'tomàquet' => 'Verdures',
+            'enciam' => 'Verdures',
+            'carbassó' => 'Verdures',
+            'albergínia' => 'Verdures',
+        
+            // Carns i peixos
+            'pollastre' => 'Carns i peixos',
+            'porc' => 'Carns i peixos',
+            'vedella' => 'Carns i peixos',
+            'salmon' => 'Carns i peixos',
+            'bacallà' => 'Carns i peixos',
+        
+            // Congelats
+            'pizza' => 'Congelats',
+            'gelat' => 'Congelats',
+            'croquetes' => 'Congelats',
+            'verdures congelades' => 'Congelats',
+        
+            // Begudes
+            'aigua' => 'Begudes',
+            'coca-cola' => 'Begudes',
+            'suc' => 'Begudes',
+            'cervesa' => 'Begudes',
+        
+            // Neteja
+            'detergent' => 'Neteja',
+            'lleixiu' => 'Neteja',
+            'netejavidres' => 'Neteja',
+            'sabó' => 'Neteja',
+        
+            // Conserves
+            'tonyina' => 'Conserves',
+            'tomàquet triturat' => 'Conserves',
+            'cigrons' => 'Conserves',
+            'mongetes' => 'Conserves',
+        
+            // Snacks
+            'patates xip' => 'Snacks',
+            'avellanes' => 'Snacks',
+            'galetes' => 'Snacks',
+            'xocolata' => 'Snacks',
         ];
 
         $itemName = strtolower($request->name);

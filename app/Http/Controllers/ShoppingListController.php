@@ -35,13 +35,64 @@ class ShoppingListController extends Controller
 
     // Mostrar totes les llistes de la compra de l'usuari
     public function index()
-    {
-        $userId = auth()->id();
-        $createdLists = $this->firebase->get("shopping_lists/created/$userId") ?? [];
-        $sharedLists = $this->firebase->get("shopping_lists/shared/$userId") ?? [];
-        $shoppingLists = array_merge($createdLists, $sharedLists);
-        return view('shopping_lists.index', compact('shoppingLists'));
+{
+    $userId = auth()->id();
+    $createdLists = $this->firebase->get("shopping_lists/created/$userId") ?? [];
+    $sharedLists = $this->firebase->get("shopping_lists/shared/$userId") ?? [];
+
+    // Normalitzar llistes per assegurar que totes tenen 'name'
+    $shoppingLists = [];
+
+    // Afegir llistes creades
+    foreach ($createdLists as $listId => $list) {
+        $shoppingLists[$listId] = [
+            'list_id' => $listId,
+            'name' => $list['name'] ?? 'Llista sense nom',
+            'share_code' => $list['share_code'] ?? null,
+            'created_at' => $list['created_at'] ?? null,
+            'is_owner' => true,
+        ];
     }
+
+    // Afegir llistes compartides
+    foreach ($sharedLists as $listId => $list) {
+        // Evitar sobreescriure llistes creades
+        if (!isset($shoppingLists[$listId])) {
+            // Obtenir el share_code i user_id des de share_codes
+            $shareCodeData = $this->firebase->get("share_codes");
+            $ownerId = null;
+            foreach ($shareCodeData as $code => $codeData) {
+                if (isset($codeData[$listId]['list_id']) && $codeData[$listId]['list_id'] === $listId) {
+                    $ownerId = $codeData[$listId]['user_id'];
+                    break;
+                }
+            }
+
+            if ($ownerId) {
+                // Obtenir la llista original per recuperar el 'name'
+                $originalList = $this->firebase->get("shopping_lists/created/$ownerId/$listId");
+                $shoppingLists[$listId] = [
+                    'list_id' => $listId,
+                    'name' => $originalList['name'] ?? 'Llista sense nom',
+                    'share_code' => $originalList['share_code'] ?? null,
+                    'created_at' => $list['added_at'] ?? null,
+                    'is_owner' => false,
+                ];
+            } else {
+                // Si no es troba ownerId, afegir amb dades mínimes
+                $shoppingLists[$listId] = [
+                    'list_id' => $listId,
+                    'name' => 'Llista sense nom',
+                    'share_code' => null,
+                    'created_at' => $list['added_at'] ?? null,
+                    'is_owner' => false,
+                ];
+            }
+        }
+    }
+
+    return view('shopping_lists.index', compact('shoppingLists'));
+}
 
     // Crear una nova llista de la compra
     public function create()
@@ -80,11 +131,53 @@ class ShoppingListController extends Controller
     public function show($listId)
     {
         $userId = auth()->id();
-        $shoppingList = $this->firebase->get("shopping_lists/created/$userId/$listId") ??
-                       $this->firebase->get("shopping_lists/shared/$userId/$listId");
+        $createdList = $this->firebase->get("shopping_lists/created/$userId/$listId");
+        $sharedList = $this->firebase->get("shopping_lists/shared/$userId/$listId");
 
-        if (!$shoppingList) {
+        if (!$createdList && !$sharedList) {
             abort(404, 'Llista no trobada');
+        }
+
+        // Normalitzar la llista
+        if ($createdList) {
+            // Llista creada per l'usuari
+            $shoppingList = [
+                'list_id' => $listId,
+                'name' => $createdList['name'] ?? 'Llista sense nom',
+                'share_code' => $createdList['share_code'] ?? null,
+                'user_id' => $createdList['user_id'] ?? $userId,
+                'created_at' => $createdList['created_at'] ?? null,
+                'is_owner' => true,
+            ];
+        } else {
+            // Llista compartida: obtenir user_id des de share_codes
+            $shareCodeData = $this->firebase->get("share_codes");
+            $ownerId = null;
+            foreach ($shareCodeData as $code => $codeData) {
+                if (isset($codeData[$listId]['list_id']) && $codeData[$listId]['list_id'] === $listId) {
+                    $ownerId = $codeData[$listId]['user_id'];
+                    break;
+                }
+            }
+
+            if (!$ownerId) {
+                abort(404, 'Propietari de la llista no trobat');
+            }
+
+            // Obtenir la llista original
+            $originalList = $this->firebase->get("shopping_lists/created/$ownerId/$listId");
+            if (!$originalList) {
+                abort(404, 'Llista original no trobada');
+            }
+
+            $shoppingList = [
+                'list_id' => $listId,
+                'name' => $originalList['name'] ?? 'Llista sense nom',
+                'share_code' => $originalList['share_code'] ?? null,
+                'user_id' => $ownerId,
+                'created_at' => $sharedList['added_at'] ?? null,
+                'is_owner' => false,
+            ];
         }
 
         $categories = $this->firebase->get("categories/$listId") ?? [];
@@ -166,27 +259,35 @@ class ShoppingListController extends Controller
     $userId = auth()->id();
     $shareCode = $request->input('share_code');
 
-    $shareCodeRef = app('firebase.database')->getReference("share_codes/$shareCode");
-    $shareCodeData = $shareCodeRef->getValue();
+    // Obtenir les dades de share_codes/$shareCode
+    $shareCodeData = $this->firebase->get("share_codes/$shareCode");
 
     if (!$shareCodeData) {
         return back()->withErrors(['share_code' => 'Clau no vàlida']);
     }
 
-    $listId = $shareCodeData['list_id'];
-    $ownerId = $shareCodeData['user_id'];
-
-    if ($userId == $ownerId || app('firebase.database')->getReference("shopping_lists/shared/$userId/$listId")->getValue()) {
-        return back()->withErrors(['share_code' => `Ja formes part d'aquesta llista`]);
+    // Com share_codes/$shareCode conté un nivell amb $listId, agafem la primera entrada
+    $listData = reset($shareCodeData); // Obté el primer element de l'array
+    if (!$listData || !isset($listData['list_id'], $listData['user_id'])) {
+        return back()->withErrors(['share_code' => 'Clau no vàlida']);
     }
 
-    app('firebase.database')->getReference("shopping_lists/shared/$userId/$listId")->set([
+    $listId = $listData['list_id'];
+    $ownerId = $listData['user_id'];
+
+    if ($userId == $ownerId || $this->firebase->get("shopping_lists/shared/$userId/$listId")) {
+        return back()->withErrors(['share_code' => "Ja formes part d'aquesta llista"]);
+    }
+
+    $this->firebase->set("shopping_lists/shared/$userId/$listId", [
         'list_id' => $listId,
         'added_at' => now()->toDateTimeString(),
     ]);
 
-    return redirect()->route('shopping_lists.index')->with('status', `Ara formes part d'aquesta llista`);
+    return redirect()->route('shopping_lists.index')->with('status', "Ara formes part d'aquesta llista");
 }
+
+
 
     // Emmagatzemar un nou ítem en una llista
     public function storeItem(Request $request, $listId)

@@ -29,3 +29,16 @@ Auth::routes();
 Route::get('/', function () {
     return redirect()->route('shopping_lists.index');
 });
+
+Route::get('/logout', function () {
+    Auth::logout();
+    return redirect('/');
+})->name('logout');
+
+
+use App\Services\FirebaseService;
+
+Route::get('/firebase-test', function (FirebaseService $firebase) {
+    $firebase->set('prueba', ['estado' => 'ok']);
+    return 'Firebase funcionando ✅';
+});

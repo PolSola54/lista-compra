@@ -12,10 +12,15 @@ class FirebaseService
     public function __construct()
     {
         $factory = (new Factory)
-            ->withServiceAccount(config('firebase.credentials'))
-            ->withDatabaseUri(config('firebase.database_uri'));
+    ->withServiceAccount(config('firebase.credentials'))
+    ->withDatabaseUri(config('firebase.database_uri'));
 
+
+
+    //dd(config('firebase.credentials'), config('firebase.database_uri'));
+    //dd(config('firebase.database_uri')); // Debug
         $this->database = $factory->createDatabase();
+
     }
 
     public function getDatabase(): Database

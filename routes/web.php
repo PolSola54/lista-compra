@@ -20,8 +20,16 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('shopping-lists/{listId}/items/{itemId}', [ShoppingListController::class, 'updateItem'])->name('shopping_lists.items.update');
     Route::delete('shopping-lists/{listId}/items/{itemId}', [ShoppingListController::class, 'destroyItem'])->name('shopping_lists.items.destroy');
 
+    // Moure/ordenar ítems (drag and drop)
+    Route::post('/shopping_lists/{listId}/items/reorder', [ShoppingListController::class, 'reorder'])->name('shopping_lists.items.reorder');
+    Route::post('/shopping_lists/{listId}/items/move', [ShoppingListController::class, 'moveItem'])->name('shopping_lists.items.move');
+
     // Gestió de categories
     Route::delete('shopping-lists/{listId}/categories/{categoryId}', [ShoppingListController::class, 'destroyCategory'])->name('shopping_lists.categories.destroy');
+
+    // Editar categoria (inline)
+    Route::patch('/shopping_lists/{listId}/categories/{categoryId}', [ShoppingListController::class, 'updateCategory'])->name('shopping_lists.categories.update');
+
 });
 
 Auth::routes();

@@ -181,6 +181,13 @@ class ShoppingListController extends Controller
         }
 
         $categories = $this->firebase->get("categories/$listId") ?? [];
+        // Ordenar categories per updated_at DESC (si existeix, sinó per created_at DESC)
+        uasort($categories, function($a, $b) {
+            $aTime = $a['updated_at'] ?? $a['created_at'] ?? 0;
+            $bTime = $b['updated_at'] ?? $b['created_at'] ?? 0;
+            return strcmp($bTime, $aTime); // DESC
+        });
+
         $items = [];
         foreach ($categories as $categoryId => $category) {
             $catItems = $this->firebase->get("items/$listId/$categoryId") ?? [];
@@ -359,8 +366,9 @@ class ShoppingListController extends Controller
             'pollastre' => 'Carns i peixos',
             'porc' => 'Carns i peixos',
             'vedella' => 'Carns i peixos',
-            'salmo' => 'Carns i peixos',
+            'salmon' => 'Carns i peixos',
             'bacallà' => 'Carns i peixos',
+            'embotit' => 'Carns i peixos',
 
             // Congelats
             'pizza' => 'Congelats',
@@ -372,7 +380,9 @@ class ShoppingListController extends Controller
             'aigua' => 'Begudes',
             'coca-cola' => 'Begudes',
             'suc' => 'Begudes',
+            'cafè' => 'Begudes',
             'cervesa' => 'Begudes',
+
 
             // Neteja
             'detergent' => 'Neteja',
@@ -405,11 +415,17 @@ class ShoppingListController extends Controller
             }
         }
 
+        $now = now()->toIso8601String();
         if (!$categoryId) {
             $categoryId = uniqid();
             $this->firebase->set("categories/$listId/$categoryId", [
                 'name' => $categoryName,
-                'created_at' => now()->toIso8601String(),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            $this->firebase->update("categories/$listId/$categoryId", [
+                'updated_at' => $now,
             ]);
         }
 
@@ -423,7 +439,7 @@ class ShoppingListController extends Controller
             'is_completed' => false,
             'tag' => $request->tag ?? '',
             'order' => $nextOrder,  // Nou camp order
-            'created_at' => now()->toIso8601String(),
+            'created_at' => $now,
         ];
         $this->firebase->set("items/$listId/$categoryId/$itemId", $itemData);
 

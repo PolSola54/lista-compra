@@ -30,13 +30,6 @@
     <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">{{ $shoppingList['name'] ?? 'Llista sense nom' }}</h1>
 
-        <div class="mt-8 text-center">
-            <a href="{{ route('shopping_lists.index') }}" class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300">
-                <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
-            </a>
-        </div>
-
-
         <!-- Clau per compartir -->
         <div class="mb-6 bg-blue-50 p-4 rounded-lg fade-in">
             <p class="text-gray-700">Clau per compartir: <span class="font-semibold bg-blue-100 px-2 py-1 rounded">{{ $shoppingList['share_code'] }}</span></p>
@@ -63,10 +56,10 @@
         </div>
 
         <!-- Categories i ítems -->
-        @if (empty($categories))
-            <p class="text-gray-600 text-center fade-in">Aquesta llista no té cap categoria ni ítem. Afegeix-ne un!</p>
-        @else
-            <div class="space-y-6">
+        <div id="categories-container" class="space-y-6">
+            @if (empty($categories))
+                <p class="text-gray-600 text-center fade-in">Aquesta llista no té cap categoria ni ítem. Afegeix-ne un!</p>
+            @else
                 @foreach ($categories as $categoryId => $category)
                 <div class="bg-gray-50 p-6 rounded-lg shadow-md transform transition-all duration-300 hover:shadow-lg fade-in">
                     <div class="flex justify-between items-center mb-4">
@@ -88,11 +81,11 @@
                         @foreach ($items[$categoryId] ?? [] as $itemId => $item)
                         <li data-item-id="{{ $itemId }}" class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm item-complete {{ $item['is_completed'] ? 'opacity-75' : '' }} cursor-move">
                             <div class="flex items-center flex-grow">
-                                <form class="update-completed-form" action="{{ route('shopping_lists.items.update', [$listId, $itemId]) }}" method="POST">
+                                <form action="{{ route('shopping_lists.items.update', [$listId, $itemId]) }}" method="POST">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="category_id" value="{{ $categoryId }}">
-                                    <input type="checkbox" name="is_completed" value="1" {{ $item['is_completed'] ? 'checked' : '' }} class="w-5 h-5 text-blue-600 rounded focus:ring-blue-400 mr-3">
+                                    <input type="checkbox" name="is_completed" value="1" {{ $item['is_completed'] ? 'checked' : '' }} onchange="this.form.submit()" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-400 mr-3">
                                 </form>
                                 <span class="{{ $item['is_completed'] ? 'line-through text-gray-500' : 'text-gray-800' }} editable-name mr-2 cursor-text" data-field="name" data-category-id="{{ $categoryId }}" data-item-id="{{ $itemId }}">
                                     {{ $item['name'] }}
@@ -118,17 +111,21 @@
                     </ul>
                 </div>
                 @endforeach
-            </div>
-        @endif
+            @endif
+        </div>
 
-        
+        <div class="mt-8 text-center">
+            <a href="{{ route('shopping_lists.index') }}" class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300">
+                <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
+            </a>
+        </div>
     </div>
 
     <!-- Template per nou ítem -->
     <template id="new-item-template">
         <li data-item-id="ITEM_ID" class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm cursor-move">
             <div class="flex items-center flex-grow">
-                <form class="update-completed-form" action="{{ route('shopping_lists.items.update', [$listId, 'ITEM_ID']) }}" method="POST">
+                <form action="{{ route('shopping_lists.items.update', [$listId, 'ITEM_ID']) }}" method="POST">
                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="_method" value="PATCH">
                     <input type="hidden" name="category_id" value="CATEGORY_ID">
@@ -333,6 +330,10 @@
                           categoryUl.appendChild(newLiElement);
                           // Attach event to new delete form
                           newLiElement.querySelector('.delete-item-form').addEventListener('submit', deleteHandler);
+                          // Move category to top
+                          let categoryDiv = categoryUl.closest('.bg-gray-50');
+                          let container = document.getElementById('categories-container');
+                          container.prepend(categoryDiv);
                           // Reset form
                           this.reset();
                           Toastify({
@@ -343,7 +344,7 @@
                               style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
                           }).showToast();
                       } else {
-                          location.reload(); // Si nova categoria, reload per mostrar-la
+                          location.reload(); // Si nova categoria, reload per mostrar-la al top
                       }
                   }
               }).catch(error => {
@@ -534,51 +535,6 @@
                 }
             });
         }
-
-        // Handler per update completed amb AJAX
-        document.querySelectorAll('.update-completed-form').forEach(form => {
-            form.querySelector('input[type="checkbox"]').addEventListener('change', function(e) {
-                let formData = new FormData(form);
-                formData.set('is_completed', this.checked ? '1' : '0');
-                fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                }).then(response => response.json())
-                  .then(data => {
-                      if (data.success) {
-                          let li = this.closest('li');
-                          let span = li.querySelectorAll('span');
-                          span.forEach(s => {
-                              s.classList.toggle('line-through', this.checked);
-                              s.classList.toggle('text-gray-500', this.checked);
-                              s.classList.toggle('text-gray-800', !this.checked);
-                          });
-                          li.classList.toggle('opacity-75', this.checked);
-                          Toastify({
-                              text: this.checked ? "Ítem completat!" : "Ítem pendent!",
-                              duration: 3000,
-                              gravity: "top",
-                              position: "right",
-                              style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
-                          }).showToast();
-                      }
-                  }).catch(error => {
-                      console.error('Error en update completed:', error);
-                      this.checked = !this.checked; // Revertir checkbox si error
-                      Toastify({
-                          text: "Error actualitzant ítem!",
-                          duration: 3000,
-                          gravity: "top",
-                          position: "right",
-                          style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
-                      }).showToast();
-                  });
-            });
-        });
     </script>
 </body>
 </html>

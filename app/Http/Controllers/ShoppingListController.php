@@ -359,7 +359,7 @@ class ShoppingListController extends Controller
             'pollastre' => 'Carns i peixos',
             'porc' => 'Carns i peixos',
             'vedella' => 'Carns i peixos',
-            'salmon' => 'Carns i peixos',
+            'salmo' => 'Carns i peixos',
             'bacallà' => 'Carns i peixos',
 
             // Congelats
@@ -418,13 +418,25 @@ class ShoppingListController extends Controller
         $nextOrder = count($currentItems);
 
         $itemId = uniqid();
-        $this->firebase->set("items/$listId/$categoryId/$itemId", [
+        $itemData = [
             'name' => $request->name,
             'is_completed' => false,
             'tag' => $request->tag ?? '',
             'order' => $nextOrder,  // Nou camp order
             'created_at' => now()->toIso8601String(),
-        ]);
+        ];
+        $this->firebase->set("items/$listId/$categoryId/$itemId", $itemData);
+
+        // Si és AJAX, retorna JSON amb detalls per afegir al DOM
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'item' => $itemData,
+                'item_id' => $itemId,
+                'category_id' => $categoryId,
+                'category_name' => $categoryName
+            ]);
+        }
 
         return redirect()->route('shopping_lists.show', $listId)->with('success', 'Ítem afegit correctament');
     }
@@ -518,6 +530,11 @@ class ShoppingListController extends Controller
 
         $categoryId = $request->category_id;
         $this->firebase->delete("items/$listId/$categoryId/$itemId");
+
+        // Si és AJAX, retorna JSON
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()->route('shopping_lists.show', $listId)->with('success', 'Ítem eliminat correctament');
     }

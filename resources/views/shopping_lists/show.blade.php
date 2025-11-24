@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- CDN per Sortable.js -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- CDN per Toastify.js -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <style>
         /* Custom animations */
         @keyframes fadeIn {
@@ -27,6 +30,13 @@
     <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">{{ $shoppingList['name'] ?? 'Llista sense nom' }}</h1>
 
+        <div class="mt-8 text-center">
+            <a href="{{ route('shopping_lists.index') }}" class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300">
+                <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
+            </a>
+        </div>
+
+
         <!-- Clau per compartir -->
         <div class="mb-6 bg-blue-50 p-4 rounded-lg fade-in">
             <p class="text-gray-700">Clau per compartir: <span class="font-semibold bg-blue-100 px-2 py-1 rounded">{{ $shoppingList['share_code'] }}</span></p>
@@ -42,7 +52,7 @@
 
         <!-- Formulari per afegir ítem -->
         <div class="mb-8 fade-in">
-            <form action="{{ route('shopping_lists.items.store', $listId) }}" method="POST" class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+            <form id="add-item-form" action="{{ route('shopping_lists.items.store', $listId) }}" method="POST" class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
                 @csrf
                 <input type="text" name="name" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-shadow" placeholder="Afegir ítem..." required>
                 <input type="text" name="tag" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-shadow" placeholder="Etiqueta (ex. Bonpreu-Esclat)">
@@ -78,11 +88,11 @@
                         @foreach ($items[$categoryId] ?? [] as $itemId => $item)
                         <li data-item-id="{{ $itemId }}" class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm item-complete {{ $item['is_completed'] ? 'opacity-75' : '' }} cursor-move">
                             <div class="flex items-center flex-grow">
-                                <form action="{{ route('shopping_lists.items.update', [$listId, $itemId]) }}" method="POST">
+                                <form class="update-completed-form" action="{{ route('shopping_lists.items.update', [$listId, $itemId]) }}" method="POST">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="category_id" value="{{ $categoryId }}">
-                                    <input type="checkbox" name="is_completed" value="1" {{ $item['is_completed'] ? 'checked' : '' }} onchange="this.form.submit()" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-400 mr-3">
+                                    <input type="checkbox" name="is_completed" value="1" {{ $item['is_completed'] ? 'checked' : '' }} class="w-5 h-5 text-blue-600 rounded focus:ring-blue-400 mr-3">
                                 </form>
                                 <span class="{{ $item['is_completed'] ? 'line-through text-gray-500' : 'text-gray-800' }} editable-name mr-2 cursor-text" data-field="name" data-category-id="{{ $categoryId }}" data-item-id="{{ $itemId }}">
                                     {{ $item['name'] }}
@@ -95,7 +105,7 @@
                                     <i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>
                                 @endif
                             </div>
-                            <form action="{{ route('shopping_lists.items.destroy', [$listId, $itemId]) }}" method="POST" onsubmit="return confirm('Segur que vols eliminar aquest ítem?');">
+                            <form class="delete-item-form" action="{{ route('shopping_lists.items.destroy', [$listId, $itemId]) }}" method="POST">
                                 @csrf
                                 @method('DELETE')
                                 <input type="hidden" name="category_id" value="{{ $categoryId }}">
@@ -111,12 +121,38 @@
             </div>
         @endif
 
-        <div class="mt-8 text-center">
-            <a href="{{ route('shopping_lists.index') }}" class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300">
-                <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
-            </a>
-        </div>
+        
     </div>
+
+    <!-- Template per nou ítem -->
+    <template id="new-item-template">
+        <li data-item-id="ITEM_ID" class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm cursor-move">
+            <div class="flex items-center flex-grow">
+                <form class="update-completed-form" action="{{ route('shopping_lists.items.update', [$listId, 'ITEM_ID']) }}" method="POST">
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="_method" value="PATCH">
+                    <input type="hidden" name="category_id" value="CATEGORY_ID">
+                    <input type="checkbox" name="is_completed" value="1" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-400 mr-3">
+                </form>
+                <span class="text-gray-800 editable-name mr-2 cursor-text" data-field="name" data-category-id="CATEGORY_ID" data-item-id="ITEM_ID">
+                    ITEM_NAME
+                </span>
+                <i class="fas fa-edit text-blue-500 hover:text-blue-700 mr-2 cursor-pointer edit-icon" onclick="editInline(this)"></i>
+                <span class="text-gray-800 editable-tag cursor-text" data-field="tag" data-category-id="CATEGORY_ID" data-item-id="ITEM_ID">
+                    ITEM_TAG
+                </span>
+                TAG_EDIT_ICON
+            </div>
+            <form class="delete-item-form" action="{{ route('shopping_lists.items.destroy', [$listId, 'ITEM_ID']) }}" method="POST">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="_method" value="DELETE">
+                <input type="hidden" name="category_id" value="CATEGORY_ID">
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+        </li>
+    </template>
 
     <!-- Script per inicialitzar Sortable.js -->
     <script>
@@ -145,10 +181,23 @@
                         }).then(response => response.json())
                           .then(data => {
                               if (data.success) {
-                                  console.log('Ordre actualitzat');
+                                  Toastify({
+                                      text: "Ordre actualitzat!",
+                                      duration: 3000,
+                                      gravity: "top",
+                                      position: "right",
+                                      style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                                  }).showToast();
                               }
                           }).catch(error => {
                               console.error('Error en reorder:', error);
+                              Toastify({
+                                  text: "Error en l'ordre!",
+                                  duration: 3000,
+                                  gravity: "top",
+                                  position: "right",
+                                  style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                              }).showToast();
                           });
                     } else {
                         // Move a una altra categoria
@@ -174,16 +223,181 @@
                         }).then(response => response.json())
                           .then(data => {
                               if (data.success) {
-                                  console.log('Ítem mogut i orders ajustats');
+                                  Toastify({
+                                      text: "Ítem mogut!",
+                                      duration: 3000,
+                                      gravity: "top",
+                                      position: "right",
+                                      style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                                  }).showToast();
                               }
                           }).catch(error => {
                               console.error('Error en move:', error);
-                              // Opcional: revertir el move en DOM si error, però per simplicitat, reload si cal
+                              Toastify({
+                                  text: "Error en el moviment!",
+                                  duration: 3000,
+                                  gravity: "top",
+                                  position: "right",
+                                  style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                              }).showToast();
                               location.reload();
                           });
                     }
                 }
             });
+        });
+
+        // Replicació de productCategories en JS per determinar categoria en add AJAX
+        const productCategories = {
+            'llet': 'Làctics',
+            'formatge': 'Làctics',
+            'iogurt': 'Làctics',
+            'mantega': 'Làctics',
+            'nata': 'Làctics',
+            'kefir': 'Làctics',
+            'pa': 'Forn',
+            'croissant': 'Forn',
+            'baguet': 'Forn',
+            'ensaimada': 'Forn',
+            'magdalena': 'Forn',
+            'poma': 'Fruites',
+            'plàtan': 'Fruites',
+            'taronja': 'Fruites',
+            'maduixa': 'Fruites',
+            'mango': 'Fruites',
+            'pinya': 'Fruites',
+            'patates': 'Verdures',
+            'ceba': 'Verdures',
+            'tomàquet': 'Verdures',
+            'enciam': 'Verdures',
+            'carbassó': 'Verdures',
+            'albergínia': 'Verdures',
+            'pollastre': 'Carns i peixos',
+            'porc': 'Carns i peixos',
+            'vedella': 'Carns i peixos',
+            'salmon': 'Carns i peixos',
+            'bacallà': 'Carns i peixos',
+            'pizza': 'Congelats',
+            'gelat': 'Congelats',
+            'croquetes': 'Congelats',
+            'verdures congelades': 'Congelats',
+            'aigua': 'Begudes',
+            'coca-cola': 'Begudes',
+            'suc': 'Begudes',
+            'cervesa': 'Begudes',
+            'detergent': 'Neteja',
+            'lleixiu': 'Neteja',
+            'netejavidres': 'Neteja',
+            'sabó': 'Neteja',
+            'tonyina': 'Conserves',
+            'tomàquet triturat': 'Conserves',
+            'cigrons': 'Conserves',
+            'mongetes': 'Conserves',
+            'patates xip': 'Snacks',
+            'avellanes': 'Snacks',
+            'galetes': 'Snacks',
+            'xocolata': 'Snacks',
+        };
+
+        // Manejar add item amb AJAX
+        document.getElementById('add-item-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      // Determinar categoria en JS
+                      let itemName = formData.get('name').toLowerCase();
+                      let categoryName = productCategories[itemName] || 'Altres';
+                      let categoryUl = document.querySelector(`ul[id^="sortable-"][id$="${data.category_id}"]`);
+                      if (categoryUl) {
+                          // Crear nou <li> des del template
+                          let template = document.getElementById('new-item-template').innerHTML;
+                          let tagHtml = data.item.tag ? `(${data.item.tag})` : '';
+                          let tagEditIcon = data.item.tag ? '<i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>' : '';
+                          let newLiHtml = template.replace(/ITEM_ID/g, data.item_id)
+                                                  .replace(/CATEGORY_ID/g, data.category_id)
+                                                  .replace('ITEM_NAME', data.item.name)
+                                                  .replace('ITEM_TAG', tagHtml)
+                                                  .replace('TAG_EDIT_ICON', tagEditIcon);
+                          let tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = newLiHtml;
+                          let newLiElement = tempDiv.firstElementChild;
+                          categoryUl.appendChild(newLiElement);
+                          // Attach event to new delete form
+                          newLiElement.querySelector('.delete-item-form').addEventListener('submit', deleteHandler);
+                          // Reset form
+                          this.reset();
+                          Toastify({
+                              text: "Ítem afegit!",
+                              duration: 3000,
+                              gravity: "top",
+                              position: "right",
+                              style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                          }).showToast();
+                      } else {
+                          location.reload(); // Si nova categoria, reload per mostrar-la
+                      }
+                  }
+              }).catch(error => {
+                  console.error('Error en add:', error);
+                  Toastify({
+                      text: "Error afegint ítem!",
+                      duration: 3000,
+                      gravity: "top",
+                      position: "right",
+                      style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                  }).showToast();
+              });
+        });
+
+        // Handler per delete
+        let deleteHandler = function(e) {
+            e.preventDefault();
+            if (confirm('Segur que vols eliminar aquest ítem?')) {
+                let formData = new FormData(this);
+                fetch(this.action, {
+                    method: 'POST', // Laravel usa POST per _method=DELETE
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                }).then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.closest('li').remove();
+                          Toastify({
+                              text: "Ítem eliminat!",
+                              duration: 3000,
+                              gravity: "top",
+                              position: "right",
+                              style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                          }).showToast();
+                      }
+                  }).catch(error => {
+                      console.error('Error en delete:', error);
+                      Toastify({
+                          text: "Error eliminant ítem!",
+                          duration: 3000,
+                          gravity: "top",
+                          position: "right",
+                          style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                      }).showToast();
+                  });
+            }
+        };
+
+        // Attach a tots els delete forms inicials
+        document.querySelectorAll('.delete-item-form').forEach(form => {
+            form.addEventListener('submit', deleteHandler);
         });
 
         // Funció per edición inline d'ítems (name o tag)
@@ -226,16 +440,26 @@
                           newSpan.textContent = field === 'tag' && newValue ? `(${newValue})` : newValue;
                           newSpan.classList.add('mr-2', 'cursor-text'); // Estils
                           input.replaceWith(newSpan);
-                          icon.style.display = 'inline'; // Mostra icono
-                          // Si era tag i ara buit, amaga icono (però com és dinàmic, reload o maneja JS)
-                          if (field === 'tag' && !newValue) {
-                              icon.style.display = 'none';
-                          }
-                          console.log('Ítem actualitzat');
+                          // Si era tag i ara buit, no mostris icono (comprova si hi ha text)
+                          icon.style.display = (field === 'tag' && !newValue) ? 'none' : 'inline';
+                          Toastify({
+                              text: "Ítem editat!",
+                              duration: 3000,
+                              gravity: "top",
+                              position: "right",
+                              style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                          }).showToast();
                       }
                   }).catch(error => {
                       console.error('Error en update:', error);
                       input.value = original; // Revertir si error
+                      Toastify({
+                          text: "Error en l'edició!",
+                          duration: 3000,
+                          gravity: "top",
+                          position: "right",
+                          style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                      }).showToast();
                   });
             };
 
@@ -282,11 +506,24 @@
                           newSpan.classList.add('text-2xl', 'font-semibold', 'text-gray-800', 'cursor-text');
                           input.replaceWith(newSpan);
                           icon.style.display = 'inline'; // Mostra icono
-                          console.log('Categoria actualitzada');
+                          Toastify({
+                              text: "Categoria editada!",
+                              duration: 3000,
+                              gravity: "top",
+                              position: "right",
+                              style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                          }).showToast();
                       }
                   }).catch(error => {
                       console.error('Error en update category:', error);
                       input.value = original; // Revertir si error
+                      Toastify({
+                          text: "Error en l'edició de categoria!",
+                          duration: 3000,
+                          gravity: "top",
+                          position: "right",
+                          style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                      }).showToast();
                   });
             };
 
@@ -297,6 +534,51 @@
                 }
             });
         }
+
+        // Handler per update completed amb AJAX
+        document.querySelectorAll('.update-completed-form').forEach(form => {
+            form.querySelector('input[type="checkbox"]').addEventListener('change', function(e) {
+                let formData = new FormData(form);
+                formData.set('is_completed', this.checked ? '1' : '0');
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                }).then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          let li = this.closest('li');
+                          let span = li.querySelectorAll('span');
+                          span.forEach(s => {
+                              s.classList.toggle('line-through', this.checked);
+                              s.classList.toggle('text-gray-500', this.checked);
+                              s.classList.toggle('text-gray-800', !this.checked);
+                          });
+                          li.classList.toggle('opacity-75', this.checked);
+                          Toastify({
+                              text: this.checked ? "Ítem completat!" : "Ítem pendent!",
+                              duration: 3000,
+                              gravity: "top",
+                              position: "right",
+                              style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                          }).showToast();
+                      }
+                  }).catch(error => {
+                      console.error('Error en update completed:', error);
+                      this.checked = !this.checked; // Revertir checkbox si error
+                      Toastify({
+                          text: "Error actualitzant ítem!",
+                          duration: 3000,
+                          gravity: "top",
+                          position: "right",
+                          style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                      }).showToast();
+                  });
+            });
+        });
     </script>
 </body>
 </html>

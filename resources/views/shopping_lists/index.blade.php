@@ -15,6 +15,17 @@
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-200 min-h-screen p-6">
 
+<!-- Barra superior amb Logout -->
+<div class="flex justify-end mb-6">
+    <form action="{{ route('logout') }}" method="POST" class="inline">
+        @csrf
+        <button type="submit" class="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition"
+                onclick="return confirm('Segur que vols tancar sessió?');">
+            <i class="fas fa-sign-out-alt mr-2"></i> Tancar sessió
+        </button>
+    </form>
+</div>
+
     <div class="max-w-6xl mx-auto">
         <h1 class="text-5xl font-bold mb-10 text-center text-gray-800">Llistes de la Compra</h1>
 

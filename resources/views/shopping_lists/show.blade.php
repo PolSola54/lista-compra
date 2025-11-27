@@ -93,7 +93,16 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-200 min-h-screen p-4">
-
+    <!-- Barra superior amb Logout -->
+    <div class="flex justify-end mb-6">
+        <form action="{{ route('logout') }}" method="POST" class="inline">
+            @csrf
+            <button type="submit" class="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition"
+                    onclick="return confirm('Segur que vols tancar sessió?');">
+                <i class="fas fa-sign-out-alt mr-2"></i> Tancar sessió
+            </button>
+        </form>
+    </div>
     <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-8">
         <h1 class="text-4xl font-bold mb-8 text-center text-gray-800">{{ $shoppingList['name'] ?? 'Llista sense nom' }}</h1>
 
@@ -123,19 +132,35 @@
             <a href="{{ route('shopping_lists.index') }}" class="btn-gray inline-flex items-center">
                 <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
             </a>
+
         </div>
 
         <!-- Formulari per afegir ítem -->
         <div class="mb-10 fade-in">
-            <form id="add-item-form" action="{{ route('shopping_lists.items.store', $listId) }}" method="POST" class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                @csrf
-                <input type="text" name="name" class="input-field" placeholder="Afegir ítem..." required>
-                <input type="text" name="tag" class="input-field" placeholder="Notes (ex. Bonpreu-Esclat, 2kg, etc.)">
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-plus mr-2"></i> Afegir
-                </button>
-            </form>
-        </div>
+    <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 items-end">
+
+        <!-- Formulari -->
+        <form id="add-item-form"
+            action="{{ route('shopping_lists.items.store', $listId) }}"
+            method="POST"
+            class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 flex-1">
+            @csrf
+            <input type="text" name="name" class="input-field" placeholder="Afegir ítem..." required>
+            <input type="text" name="tag" class="input-field" placeholder="Notes (ex. Bonpreu-Esclat, 2kg, etc.)">
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-plus mr-2"></i> Afegir
+            </button>
+        </form>
+
+        <!-- Botó amagar completats, fora del form però alineat -->
+        <button id="toggle-completed-items"
+                class="btn-primary">
+            <i class="fas fa-eye-slash mr-2"></i> Amagar completats
+        </button>
+
+    </div>
+</div>
+
 
         <!-- Categories i ítems -->
         <div id="categories-container" class="space-y-8">
@@ -193,11 +218,9 @@
                     </ul>
                 </div>
                 @endforeach
-            </div>
-        @endif
+            @endif
 
-        
-    </div>
+        </div>
 
     <!-- Template per nou ítem -->
     <template id="new-item-template">
@@ -239,6 +262,18 @@
             this.innerHTML = div.classList.contains('hidden') 
                 ? '<i class="fas fa-share-alt mr-2"></i> Mostrar clau per compartir'
                 : '<i class="fas fa-eye-slash mr-2"></i> Amagar clau';
+        });
+
+        // Toggle per amagar/mostrar ítems completats
+        let completedHidden = false;
+        document.getElementById('toggle-completed-items').addEventListener('click', function() {
+            completedHidden = !completedHidden;
+            document.querySelectorAll('.item-card.opacity-75').forEach(function(item) {
+                item.classList.toggle('hidden', completedHidden);
+            });
+            this.innerHTML = completedHidden 
+                ? '<i class="fas fa-eye mr-2"></i> Mostrar completats'
+                : '<i class="fas fa-eye-slash mr-2"></i> Amagar completats';
         });
 
         // Inicialitzar Sortable.js
@@ -405,6 +440,10 @@
                         s.classList.toggle('text-normal', !this.checked);
                     });
                     li.classList.toggle('opacity-75', this.checked);
+                    // Si estem amagant completats, amaga l'ítem immediatament si es marca com completat
+                    if (completedHidden && this.checked) {
+                        li.classList.add('hidden');
+                    }
                     Toastify({text: this.checked ? "Ítem completat!" : "Ítem pendent!", duration: 3000, style: {background: "#10b981"}}).showToast();
                 }
             }).catch(err => {

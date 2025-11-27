@@ -186,8 +186,8 @@
                     </div>
                     <ul id="sortable-{{ $categoryId }}" class="space-y-3">
                         @foreach ($items[$categoryId] ?? [] as $itemId => $item)
-                        <li data-item-id="{{ $itemId }}" class="item-card {{ $item['is_completed'] ? 'opacity-75' : '' }}">
-                            <div class="flex items-center pr-10">
+                        <li data-item-id="{{ $itemId }}" class="item-card cursor-move {{ $item['is_completed'] ? 'opacity-75' : '' }}">
+                        <div class="flex items-center pr-10">
                                 <form class="update-completed-form" action="{{ route('shopping_lists.items.update', [$listId, $itemId]) }}" method="POST">
                                     @csrf
                                     @method('PATCH')
@@ -224,8 +224,8 @@
 
     <!-- Template per nou ítem -->
     <template id="new-item-template">
-        <li data-item-id="ITEM_ID" class="item-card cursor-move">
-            <div class="flex items-center pr-10">
+    <li data-item-id="{{ $itemId }}" class="item-card cursor-move {{ $item['is_completed'] ? 'opacity-75' : '' }}">
+    <div class="flex items-center pr-10">
                 <form class="update-completed-form" action="{{ route('shopping_lists.items.update', [$listId, 'ITEM_ID']) }}" method="POST">
                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="_method" value="PATCH">

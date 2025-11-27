@@ -30,6 +30,12 @@
     <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">{{ $shoppingList['name'] ?? 'Llista sense nom' }}</h1>
 
+        <div class="mt-8 text-center">
+            <a href="{{ route('shopping_lists.index') }}" class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300">
+                <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
+            </a>
+        </div>
+        
         <!-- Clau per compartir -->
         <div class="mb-6 bg-blue-50 p-4 rounded-lg fade-in">
             <p class="text-gray-700">Clau per compartir: <span class="font-semibold bg-blue-100 px-2 py-1 rounded">{{ $shoppingList['share_code'] }}</span></p>
@@ -42,6 +48,8 @@
                 {{ session('success') }}
             </div>
         @endif
+
+        
 
         <!-- Formulari per afegir ítem -->
         <div class="mb-8 fade-in">
@@ -56,10 +64,10 @@
         </div>
 
         <!-- Categories i ítems -->
-        <div id="categories-container" class="space-y-6">
-            @if (empty($categories))
-                <p class="text-gray-600 text-center fade-in">Aquesta llista no té cap categoria ni ítem. Afegeix-ne un!</p>
-            @else
+        @if (empty($categories))
+            <p class="text-gray-600 text-center fade-in">Aquesta llista no té cap categoria ni ítem. Afegeix-ne un!</p>
+        @else
+            <div id="categories-container" class="space-y-6">
                 @foreach ($categories as $categoryId => $category)
                 <div class="bg-gray-50 p-6 rounded-lg shadow-md transform transition-all duration-300 hover:shadow-lg fade-in">
                     <div class="flex justify-between items-center mb-4">
@@ -94,9 +102,7 @@
                                 <span class="{{ $item['is_completed'] ? 'line-through text-gray-500' : 'text-gray-800' }} editable-tag cursor-text" data-field="tag" data-category-id="{{ $categoryId }}" data-item-id="{{ $itemId }}">
                                     {{ $item['tag'] ?? '' ? "({$item['tag']})" : '' }}
                                 </span>
-                                @if ($item['tag'] ?? '')
-                                    <i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>
-                                @endif
+                                <i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>
                             </div>
                             <form class="delete-item-form" action="{{ route('shopping_lists.items.destroy', [$listId, $itemId]) }}" method="POST">
                                 @csrf
@@ -111,14 +117,10 @@
                     </ul>
                 </div>
                 @endforeach
-            @endif
-        </div>
+            </div>
+        @endif
 
-        <div class="mt-8 text-center">
-            <a href="{{ route('shopping_lists.index') }}" class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300">
-                <i class="fas fa-arrow-left mr-2"></i> Tornar a les llistes
-            </a>
-        </div>
+        
     </div>
 
     <!-- Template per nou ítem -->
@@ -138,7 +140,7 @@
                 <span class="text-gray-800 editable-tag cursor-text" data-field="tag" data-category-id="CATEGORY_ID" data-item-id="ITEM_ID">
                     ITEM_TAG
                 </span>
-                TAG_EDIT_ICON
+                <i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>
             </div>
             <form class="delete-item-form" action="{{ route('shopping_lists.items.destroy', [$listId, 'ITEM_ID']) }}" method="POST">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
@@ -318,7 +320,7 @@
                           // Crear nou <li> des del template
                           let template = document.getElementById('new-item-template').innerHTML;
                           let tagHtml = data.item.tag ? `(${data.item.tag})` : '';
-                          let tagEditIcon = data.item.tag ? '<i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>' : '';
+                          let tagEditIcon = '<i class="fas fa-edit text-blue-500 hover:text-blue-700 cursor-pointer edit-icon" onclick="editInline(this)"></i>';
                           let newLiHtml = template.replace(/ITEM_ID/g, data.item_id)
                                                   .replace(/CATEGORY_ID/g, data.category_id)
                                                   .replace('ITEM_NAME', data.item.name)
@@ -330,10 +332,6 @@
                           categoryUl.appendChild(newLiElement);
                           // Attach event to new delete form
                           newLiElement.querySelector('.delete-item-form').addEventListener('submit', deleteHandler);
-                          // Move category to top
-                          let categoryDiv = categoryUl.closest('.bg-gray-50');
-                          let container = document.getElementById('categories-container');
-                          container.prepend(categoryDiv);
                           // Reset form
                           this.reset();
                           Toastify({
@@ -344,7 +342,7 @@
                               style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
                           }).showToast();
                       } else {
-                          location.reload(); // Si nova categoria, reload per mostrar-la al top
+                          location.reload(); // Si nova categoria, reload per mostrar-la
                       }
                   }
               }).catch(error => {
@@ -441,8 +439,7 @@
                           newSpan.textContent = field === 'tag' && newValue ? `(${newValue})` : newValue;
                           newSpan.classList.add('mr-2', 'cursor-text'); // Estils
                           input.replaceWith(newSpan);
-                          // Si era tag i ara buit, no mostris icono (comprova si hi ha text)
-                          icon.style.display = (field === 'tag' && !newValue) ? 'none' : 'inline';
+                          icon.style.display = 'inline'; // Sempre mostra icono
                           Toastify({
                               text: "Ítem editat!",
                               duration: 3000,
